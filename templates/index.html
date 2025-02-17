@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Chat Bot</title>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="chat-container">
+        <center id="ai-name">AI Chat Bot</center>
+        <div class="chat" id="chat"></div>
+        <input type="text" id="user-input" placeholder="Type a message...">
+        <button id="send-button" onclick="callPython()">Send</button>
+    </div>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>

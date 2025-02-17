@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Plant Disease Detection App</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f4;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+    }
+    h1 {
+      margin-bottom: 20px;
+    }
+    .tab {
+      overflow: hidden;
+      border: 1px solid #ccc;
+      background-color: #f1f1f1;
+      width: 100%;
+      display: flex;
+      justify-content: space-around;
+    }
+    .tab button {
+      background-color: inherit;
+      border: none;
+      outline: none;
+      cursor: pointer;
+      padding: 14px 16px;
+      transition: 0.3s;
+      font-size: 17px;
+      flex: 1;
+      text-align: center;
+    }
+    .tab button:hover {
+      background-color: #ddd;
+    }
+    .tab button.active {
+      background-color: #ccc;
+    }
+    .tabcontent {
+      display: none;
+      padding: 20px;
+      border: 1px solid #ccc;
+      border-top: none;
+      width: 100%;
+    }
+    .camera-section,
+    .chatbot-section {
+      text-align: center;
+    }
+    .chatbot {
+      border: 1px solid #ccc;
+      padding: 10px;
+      height: 300px;
+      overflow-y: scroll;
+      margin-bottom: 10px;
+      text-align: left;
+    }
+    .chatbot-input {
+      width: 80%;
+      padding: 10px;
+    }
+    #video {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Plant Disease Detection Website</h1>
+    <div class="tab">
+      <button class="tablinks" onclick="openTab(event, 'Camera')">Camera Detector</button>
+      <button class="tablinks" onclick="openTab(event, 'Chatbot')">AI Chatbot</button>
+    </div>
+
+    <div id="Camera" class="tabcontent">
+      <div class="camera-section">
+        <img id="cameraResult" src="" alt="Processed Video Feed" style="max-width: 500px;" />
+      </div>
+    </div>
+
+    <div id="Chatbot" class="tabcontent">
+      <div class="chatbot-section">
+        <div class="chatbot" id="chatbot">
+          <div id="chatbotMessages"></div>
+        </div>
+        <input type="text" id="chatbotInput" class="chatbot-input" placeholder="Ask me about plant diseases..." />
+        <button onclick="sendMessage()">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function openTab(evt, tabName) {
+      const tabcontent = document.getElementsByClassName("tabcontent");
+      for (let i = 0; i < tabcontent.length; i++) {
+        tabcontent[i].style.display = "none";
+      }
+      const tablinks = document.getElementsByClassName("tablinks");
+      for (let i = 0; i < tablinks.length; i++) {
+        tablinks[i].classList.remove("active");
+      }
+      document.getElementById(tabName).style.display = "block";
+      evt.currentTarget.classList.add("active");
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      document.querySelector(".tablinks").click();
+      startContinuousDetection();
+    });
+
+    function startContinuousDetection() {
+      const video = document.createElement("video");
+      video.src = "{{ url_for('static', filename='leafs.mp4') }}";
+      video.autoplay = true;
+      video.muted = true;
+      video.loop = true;
+      video.style.display = "none";
+      document.body.appendChild(video);
+
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+      const cameraResult = document.getElementById("cameraResult");
+
+      function captureFrame() {
+        if (!video.videoWidth || !video.videoHeight) {
+          requestAnimationFrame(captureFrame);
+          return;
+        }
+
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        const imageData = canvas.toDataURL("image/png");
+        fetch("/detect", {
+          method: "POST",
+          body: JSON.stringify({ image: imageData }),
+          headers: { "Content-Type": "application/json" }
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.annotated_image) {
+            cameraResult.src = data.annotated_image;
+          }
+          requestAnimationFrame(captureFrame);
+        })
+        .catch(error => {
+          console.error("Error during detection:", error);
+          requestAnimationFrame(captureFrame);
+        });
+      }
+
+      video.onloadeddata = () => {
+        captureFrame();
+      };
+    }
+
+    function sendMessage() {
+      const userInput = document.getElementById("chatbotInput").value.trim();
+      const chatbotMessages = document.getElementById("chatbotMessages");
+
+      if (!userInput) {
+        return;
+      }
+
+      chatbotMessages.innerHTML += `<p><strong>You:</strong> ${userInput}</p>`;
+
+      fetch("/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ message: userInput }),
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          chatbotMessages.innerHTML += `<p><strong>Bot:</strong> ${data.response}</p>`;
+          chatbotMessages.scrollTop = chatbotMessages.scrollHeight;
+        })
+        .catch((error) => {
+          console.error("Error:", error);
+          chatbotMessages.innerHTML += `<p><strong>Bot:</strong> I'm having trouble responding. Please try again later.</p>`;
+        });
+
+      document.getElementById("chatbotInput").value = "";
+    }
+  </script>
+</body>
+</html>
